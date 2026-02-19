@@ -19,9 +19,9 @@ class RedditService {
 
   RedditService({http.Client? client}) : _client = client ?? http.Client();
 
-  /// Fetches the top image post from r/EarthPorn for today.
-  /// Returns null if no qualifying post is found.
-  Future<WallpaperPost?> fetchTopWallpaper() async {
+  /// Fetches all qualifying image posts from r/EarthPorn for today.
+  /// Returns an empty list if no qualifying posts are found.
+  Future<List<WallpaperPost>> fetchWallpapers() async {
     final uri = Uri.parse(_endpoint);
     final response = await _client.get(
       uri,
@@ -39,6 +39,8 @@ class RedditService {
     final List<dynamic> children =
         (json['data'] as Map<String, dynamic>)['children'] as List<dynamic>;
 
+    final results = <WallpaperPost>[];
+
     for (final child in children) {
       final data =
           (child as Map<String, dynamic>)['data'] as Map<String, dynamic>;
@@ -53,14 +55,21 @@ class RedditService {
       final int width = _sourceWidth(data);
       if (width < _minWidth) continue;
 
-      return WallpaperPost(
+      results.add(WallpaperPost(
         title: (data['title'] as String?) ?? '',
         imageUrl: url,
         author: (data['author'] as String?) ?? '',
-      );
+      ));
     }
 
-    return null;
+    return results;
+  }
+
+  /// Fetches the top image post from r/EarthPorn for today.
+  /// Returns null if no qualifying post is found.
+  Future<WallpaperPost?> fetchTopWallpaper() async {
+    final posts = await fetchWallpapers();
+    return posts.isEmpty ? null : posts.first;
   }
 
   bool _isDirectImageUrl(String url) {

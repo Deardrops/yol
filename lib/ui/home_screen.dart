@@ -18,11 +18,17 @@ class _HomeScreenState extends State<HomeScreen> {
   final _wallpaperSvc = WallpaperService();
   final _storage = StorageService();
 
-  WallpaperPost? _post;
+  List<WallpaperPost> _posts = [];
+  int _currentIndex = 0;
+  bool _goForward = true; // tracks slide direction for animation
+
   bool _loading = true;
   bool _setting = false;
   bool _setToday = false;
   String? _error;
+
+  WallpaperPost? get _post =>
+      _posts.isEmpty ? null : _posts[_currentIndex];
 
   @override
   void initState() {
@@ -36,17 +42,47 @@ class _HomeScreenState extends State<HomeScreen> {
       _error = null;
     });
     try {
-      final post = await _reddit.fetchTopWallpaper();
+      final posts = await _reddit.fetchWallpapers();
       final lastUrl = await _storage.getLastWallpaperUrl();
       setState(() {
-        _post = post;
+        _posts = posts;
+        _currentIndex = 0;
         _loading = false;
-        _setToday = lastUrl != null && lastUrl == post?.imageUrl;
+        _setToday = lastUrl != null &&
+            posts.isNotEmpty &&
+            lastUrl == posts[0].imageUrl;
       });
     } catch (e) {
       setState(() {
         _loading = false;
         _error = 'Could not load wallpaper: $e';
+      });
+    }
+  }
+
+  void _goPrev() {
+    if (_posts.isEmpty || _currentIndex <= 0) return;
+    setState(() {
+      _goForward = false;
+      _currentIndex--;
+      _checkSetToday();
+    });
+  }
+
+  void _goNext() {
+    if (_posts.isEmpty || _currentIndex >= _posts.length - 1) return;
+    setState(() {
+      _goForward = true;
+      _currentIndex++;
+      _checkSetToday();
+    });
+  }
+
+  Future<void> _checkSetToday() async {
+    final lastUrl = await _storage.getLastWallpaperUrl();
+    if (mounted) {
+      setState(() {
+        _setToday = lastUrl != null && lastUrl == _post?.imageUrl;
       });
     }
   }
@@ -68,7 +104,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ok ? 'Wallpaper set successfully.' : 'Failed to set wallpaper.'),
+        content:
+            Text(ok ? 'Wallpaper set successfully.' : 'Failed to set wallpaper.'),
         duration: const Duration(seconds: 2),
       ));
     }
@@ -81,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _buildImage(),
+          _buildAnimatedImage(),
           const Align(
             alignment: Alignment.bottomCenter,
             child: DecoratedBox(
@@ -90,12 +127,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   stops: [0, 0.4, 1],
-                  colors: [Colors.transparent, Colors.transparent, Colors.black87],
+                  colors: [
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.black87
+                  ],
                 ),
               ),
               child: SizedBox(height: 220, width: double.infinity),
             ),
           ),
+          if (!_loading && _error == null) ...[
+            _buildNavButton(isNext: false),
+            _buildNavButton(isNext: true),
+          ],
           Positioned(
             left: 0,
             right: 0,
@@ -107,10 +152,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildImage() {
+  Widget _buildAnimatedImage() {
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
+        child: _PulsingLoader(),
       );
     }
     if (_error != null) {
@@ -128,27 +173,59 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: _load,
-                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                child:
+                    const Text('Retry', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
         ),
       );
     }
-    if (_post == null) {
+    if (_posts.isEmpty) {
       return const Center(
         child: Text('No wallpaper found for today.',
             style: TextStyle(color: Colors.white54)),
       );
     }
-    return CachedNetworkImage(
-      imageUrl: _post!.imageUrl,
-      fit: BoxFit.cover,
-      placeholder: (_, _) => const Center(
-        child: CircularProgressIndicator(color: Colors.white),
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      transitionBuilder: (child, animation) {
+        final isIncoming = child.key == ValueKey(_posts[_currentIndex].imageUrl);
+        final begin = isIncoming
+            ? Offset(_goForward ? 1.0 : -1.0, 0)
+            : Offset(_goForward ? -1.0 : 1.0, 0);
+        final slide = Tween<Offset>(begin: begin, end: Offset.zero)
+            .animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut));
+        return SlideTransition(position: slide, child: child);
+      },
+      child: _PostImage(
+        key: ValueKey(_posts[_currentIndex].imageUrl),
+        imageUrl: _posts[_currentIndex].imageUrl,
       ),
-      errorWidget: (_, _, _) => const Center(
-        child: Icon(Icons.broken_image, color: Colors.white38, size: 64),
+    );
+  }
+
+  Widget _buildNavButton({required bool isNext}) {
+    final canGo =
+        isNext ? _currentIndex < _posts.length - 1 : _currentIndex > 0;
+    return Positioned(
+      top: 0,
+      bottom: 0,
+      left: isNext ? null : 0,
+      right: isNext ? 0 : null,
+      child: Center(
+        child: AnimatedOpacity(
+          opacity: canGo ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          child: IgnorePointer(
+            ignoring: !canGo,
+            child: _NavButton(
+              icon: isNext ? Icons.chevron_right : Icons.chevron_left,
+              onTap: isNext ? _goNext : _goPrev,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -171,6 +248,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 1.4,
                 shadows: [Shadow(blurRadius: 12, color: Colors.black)],
               ),
+            ),
+          ),
+        if (_posts.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '${_currentIndex + 1} / ${_posts.length}',
+              style: const TextStyle(color: Colors.white38, fontSize: 12),
             ),
           ),
         const SizedBox(height: 8),
@@ -200,8 +285,99 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         disabledForegroundColor: Colors.white38,
         padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
         elevation: 0,
+      ),
+    );
+  }
+}
+
+/// Displays a single wallpaper image with its own loading/error state.
+class _PostImage extends StatelessWidget {
+  final String imageUrl;
+
+  const _PostImage({super.key, required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      fit: BoxFit.cover,
+      placeholder: (_, _) => const Center(
+        child: _PulsingLoader(),
+      ),
+      errorWidget: (_, _, _) => const Center(
+        child: Icon(Icons.broken_image, color: Colors.white38, size: 64),
+      ),
+    );
+  }
+}
+
+/// A translucent circular nav button.
+class _NavButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _NavButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.35),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white24, width: 1),
+        ),
+        child: Icon(icon, color: Colors.white, size: 26),
+      ),
+    );
+  }
+}
+
+/// Animated loading indicator with a pulsing scale effect.
+class _PulsingLoader extends StatefulWidget {
+  const _PulsingLoader();
+
+  @override
+  State<_PulsingLoader> createState() => _PulsingLoaderState();
+}
+
+class _PulsingLoaderState extends State<_PulsingLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _scale = Tween<double>(begin: 0.85, end: 1.15).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scale,
+      child: const CircularProgressIndicator(
+        color: Colors.white,
+        strokeWidth: 2.5,
       ),
     );
   }
