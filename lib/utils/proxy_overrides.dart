@@ -50,7 +50,7 @@ class ProxyHttpOverrides extends HttpOverrides {
         if (env != 'DIRECT') return env;
 
         // 2. Fall back to the value detected at startup from OS settings.
-        if (_detected != null && _detected!.isNotEmpty) {
+        if (_detected != null && _detected.isNotEmpty) {
           return 'PROXY $_detected';
         }
         return 'DIRECT';

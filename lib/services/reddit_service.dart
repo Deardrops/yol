@@ -12,8 +12,8 @@ class RedditService {
 
   static const Set<String> _imageExtensions = {'.jpg', '.jpeg', '.png'};
 
-  // Minimum source width required (4K landscape).
-  static const int _minWidth = 3840;
+  // Minimum source width required
+  static const int _minWidth = 2499;
 
   final http.Client _client;
 

@@ -14,32 +14,28 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
-}
-subprojects {
     project.evaluationDependsOn(":app")
 }
 
 // AGP 8+ requires every library module to declare a namespace.
 // async_wallpaper 2.1.0 omits it, so we patch it here.
+// pluginManager.withPlugin fires when the Android library plugin is applied,
+// before any namespace validation occurs, so the namespace can still be set.
 subprojects {
-    afterEvaluate {
-        extensions.findByType<com.android.build.gradle.LibraryExtension>()
-            ?.let { android ->
-                if (android.namespace == null) {
-                    // Read the package attribute from the module's AndroidManifest.xml
-                    // so this block works for any plugin that is missing a namespace.
-                    val manifest = file("src/main/AndroidManifest.xml")
-                    if (manifest.exists()) {
-                        val pkg = javax.xml.parsers.DocumentBuilderFactory
-                            .newInstance()
-                            .newDocumentBuilder()
-                            .parse(manifest)
-                            .documentElement
-                            .getAttribute("package")
-                        if (pkg.isNotBlank()) android.namespace = pkg
-                    }
-                }
+    pluginManager.withPlugin("com.android.library") {
+        val androidExt = extensions.getByType<com.android.build.gradle.LibraryExtension>()
+        if (androidExt.namespace == null) {
+            val manifest = file("src/main/AndroidManifest.xml")
+            if (manifest.exists()) {
+                val pkg = javax.xml.parsers.DocumentBuilderFactory
+                    .newInstance()
+                    .newDocumentBuilder()
+                    .parse(manifest)
+                    .documentElement
+                    .getAttribute("package")
+                if (pkg.isNotBlank()) androidExt.namespace = pkg
             }
+        }
     }
 }
 

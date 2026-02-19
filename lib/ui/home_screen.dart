@@ -144,10 +144,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return CachedNetworkImage(
       imageUrl: _post!.imageUrl,
       fit: BoxFit.cover,
-      placeholder: (_, __) => const Center(
+      placeholder: (_, _) => const Center(
         child: CircularProgressIndicator(color: Colors.white),
       ),
-      errorWidget: (_, __, ___) => const Center(
+      errorWidget: (_, _, _) => const Center(
         child: Icon(Icons.broken_image, color: Colors.white38, size: 64),
       ),
     );

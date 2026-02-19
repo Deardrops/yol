@@ -21,7 +21,7 @@ Future<void> main() async {
       'daily-wallpaper-unique-id',
       kDailyWallpaperTask,
       frequency: const Duration(hours: 24),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       constraints: Constraints(
         networkType: NetworkType.connected,
       ),

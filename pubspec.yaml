@@ -37,7 +37,7 @@ dependencies:
   cached_network_image: ^3.4.1
   path_provider: ^2.1.4
   async_wallpaper: ^2.0.3
-  workmanager: ^0.5.2
+  workmanager: ^0.9.0
   tray_manager: ^0.2.3
 
 dev_dependencies:
