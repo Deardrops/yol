@@ -13,7 +13,11 @@ void callbackDispatcher() {
       (String taskName, Map<String, dynamic>? inputData) async {
     if (taskName == kDailyWallpaperTask) {
       try {
-        final post = await RedditService().fetchTopWallpaper();
+        final post = await RedditService().fetchTopWallpaper(
+          // Android devices are typically portrait; always fetch portrait wallpapers
+          // in the background task where no display context is available.
+          landscapeOnly: false,
+        );
         if (post != null) {
           final ok = await WallpaperService().setWallpaper(post.imageUrl);
           if (ok) {

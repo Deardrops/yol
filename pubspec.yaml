@@ -39,6 +39,8 @@ dependencies:
   async_wallpaper: ^2.0.3
   workmanager: ^0.9.0
   tray_manager: ^0.2.3
+  window_manager: ^0.4.2
+  screen_retriever: ^0.2.0
 
 dev_dependencies:
   flutter_test:

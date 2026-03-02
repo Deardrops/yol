@@ -27,8 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _setToday = false;
   String? _error;
 
-  WallpaperPost? get _post =>
-      _posts.isEmpty ? null : _posts[_currentIndex];
+  WallpaperPost? get _post => _posts.isEmpty ? null : _posts[_currentIndex];
 
   @override
   void initState() {
@@ -42,15 +41,18 @@ class _HomeScreenState extends State<HomeScreen> {
       _error = null;
     });
     try {
-      final posts = await _reddit.fetchWallpapers();
+      // Determine orientation from the current window/screen size.
+      final size = MediaQuery.sizeOf(context);
+      final landscapeOnly = size.width >= size.height;
+
+      final posts = await _reddit.fetchWallpapers(landscapeOnly: landscapeOnly);
       final lastUrl = await _storage.getLastWallpaperUrl();
       setState(() {
         _posts = posts;
         _currentIndex = 0;
         _loading = false;
-        _setToday = lastUrl != null &&
-            posts.isNotEmpty &&
-            lastUrl == posts[0].imageUrl;
+        _setToday =
+            lastUrl != null && posts.isNotEmpty && lastUrl == posts[0].imageUrl;
       });
     } catch (e) {
       setState(() {
@@ -103,11 +105,14 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:
-            Text(ok ? 'Wallpaper set successfully.' : 'Failed to set wallpaper.'),
-        duration: const Duration(seconds: 2),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ok ? 'Wallpaper set successfully.' : 'Failed to set wallpaper.',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -130,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   colors: [
                     Colors.transparent,
                     Colors.transparent,
-                    Colors.black87
+                    Colors.black87,
                   ],
                 ),
               ),
@@ -141,12 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildNavButton(isNext: false),
             _buildNavButton(isNext: true),
           ],
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 40,
-            child: _buildBottomPanel(),
-          ),
+          Positioned(left: 0, right: 0, bottom: 40, child: _buildBottomPanel()),
         ],
       ),
     );
@@ -154,9 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildAnimatedImage() {
     if (_loading) {
-      return const Center(
-        child: _PulsingLoader(),
-      );
+      return const Center(child: _PulsingLoader());
     }
     if (_error != null) {
       return Center(
@@ -167,14 +165,18 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const Icon(Icons.cloud_off, color: Colors.white54, size: 48),
               const SizedBox(height: 16),
-              Text(_error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white54)),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white54),
+              ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: _load,
-                child:
-                    const Text('Retry', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -183,20 +185,25 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (_posts.isEmpty) {
       return const Center(
-        child: Text('No wallpaper found for today.',
-            style: TextStyle(color: Colors.white54)),
+        child: Text(
+          'No wallpaper found for today.',
+          style: TextStyle(color: Colors.white54),
+        ),
       );
     }
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 400),
       transitionBuilder: (child, animation) {
-        final isIncoming = child.key == ValueKey(_posts[_currentIndex].imageUrl);
+        final isIncoming =
+            child.key == ValueKey(_posts[_currentIndex].imageUrl);
         final begin = isIncoming
             ? Offset(_goForward ? 1.0 : -1.0, 0)
             : Offset(_goForward ? -1.0 : 1.0, 0);
-        final slide = Tween<Offset>(begin: begin, end: Offset.zero)
-            .animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut));
+        final slide = Tween<Offset>(
+          begin: begin,
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut));
         return SlideTransition(position: slide, child: child);
       },
       child: _PostImage(
@@ -207,8 +214,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNavButton({required bool isNext}) {
-    final canGo =
-        isNext ? _currentIndex < _posts.length - 1 : _currentIndex > 0;
+    final canGo = isNext
+        ? _currentIndex < _posts.length - 1
+        : _currentIndex > 0;
     return Positioned(
       top: 0,
       bottom: 0,
@@ -276,7 +284,9 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 18,
               height: 18,
               child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white),
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
             )
           : Icon(_setToday ? Icons.check_circle_outline : Icons.wallpaper),
       label: Text(_setToday ? 'Wallpaper Set' : 'Set as Wallpaper'),
@@ -285,8 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         disabledForegroundColor: Colors.white38,
         padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
         elevation: 0,
       ),
     );
@@ -294,6 +303,11 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 /// Displays a single wallpaper image with its own loading/error state.
+///
+/// Uses [SizedBox.expand] + explicit width/height to guarantee that
+/// [BoxFit.cover] (Fill mode) is applied correctly even when constraints
+/// are not fully propagated through [AnimatedSwitcher].  Without this the
+/// image can render in contain/fit mode instead of filling the frame.
 class _PostImage extends StatelessWidget {
   final String imageUrl;
 
@@ -301,14 +315,16 @@ class _PostImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CachedNetworkImage(
-      imageUrl: imageUrl,
-      fit: BoxFit.cover,
-      placeholder: (_, _) => const Center(
-        child: _PulsingLoader(),
-      ),
-      errorWidget: (_, _, _) => const Center(
-        child: Icon(Icons.broken_image, color: Colors.white38, size: 64),
+    return SizedBox.expand(
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (_, _) => const Center(child: _PulsingLoader()),
+        errorWidget: (_, _, _) => const Center(
+          child: Icon(Icons.broken_image, color: Colors.white38, size: 64),
+        ),
       ),
     );
   }
@@ -360,9 +376,10 @@ class _PulsingLoaderState extends State<_PulsingLoader>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _scale = Tween<double>(begin: 0.85, end: 1.15).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _scale = Tween<double>(
+      begin: 0.85,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override

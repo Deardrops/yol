@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="#Overview">English</a> · <a href="./README.zh.md">中文</a>
+  <a href="./README.md">English</a> · <a href="./README.zh.md">中文</a>
 </p>
 
 ---
@@ -23,7 +23,8 @@
 
 - **每日自动换壁纸** — 后台每日更新一次，无需手动操作。
 - **设置前可预览** — 左右切换今日精选风景图，满意后再一键设置。
-- **仅限高清图片** — 筛选宽度不低于 2,500 像素的图片，确保壁纸清晰细腻。
+- **方向感知过滤** — 横屏设备（Windows / macOS）仅拉取横版壁纸，竖屏设备（Android）仅拉取竖版壁纸，方向完全匹配。
+- **预览与填充效果一致** — 应用窗口比例与屏幕比例相同，预览图以**填充**模式裁切显示，与最终壁纸效果完全一致，所见即所得。
 - **系统托盘集成** *(Windows / macOS)* — 静默驻留系统托盘，右键即可快速操作。
 - **跨平台支持** — 支持 Android、Windows、macOS 等多个平台。
 
@@ -75,9 +76,9 @@ flutter build macos --release
 
 ### 使用方法
 
-1. 启动应用 — 自动获取今日精选风景图。
+1. 启动应用 — 自动获取今日与设备屏幕方向匹配的精选风景图。
 2. 点击 **←** / **→** 切换浏览可用壁纸。
-3. 点击 **设置为壁纸** 将当前图片应用为壁纸。
+3. 点击 **设置为壁纸** 将当前图片应用为壁纸（填充模式）。
 4. 应用每天会在启动时或后台任务中自动检测并更新壁纸（每日一次）。
 
 在 **Windows / macOS** 上最小化窗口后，应用将继续在系统托盘运行，右键托盘图标可快速访问。
@@ -91,10 +92,13 @@ flutter build macos --release
   从 r/EarthPorn 获取热门帖子（Reddit JSON API）
         │
         ▼
-  筛选：图片帖子、JPG/PNG 格式、宽度 ≥ 2500 像素
+  筛选：图片帖子（JPG/PNG）且方向与设备屏幕一致
+  （横屏设备拉取宽 ≥ 高的图片，竖屏设备拉取高 > 宽的图片）
         │
         ▼
-  展示预览  ──── 用户选择 ────► 设置壁纸
+  展示预览（窗口与屏幕同比例，填充裁切，所见即所得）
+        │
+        ├── 用户手动选择 ────► 设置壁纸（填充模式）
         │
         ▼ （自动模式）
   设置最高热度壁纸，并将日期保存至 SharedPreferences
@@ -104,17 +108,17 @@ flutter build macos --release
 
 ```
 lib/
-├── main.dart                  # 入口 & WorkManager 注册
+├── main.dart                  # 入口、WorkManager 注册 & 窗口尺寸初始化
 ├── background/
 │   └── background_task.dart   # Android 后台回调
 ├── models/
-│   └── wallpaper_post.dart    # 数据模型
+│   └── wallpaper_post.dart    # 数据模型（含图片尺寸与方向属性）
 ├── services/
-│   ├── reddit_service.dart    # Reddit API 客户端
+│   ├── reddit_service.dart    # Reddit API 客户端（含方向过滤）
 │   ├── wallpaper_service.dart # 跨平台壁纸设置
 │   └── storage_service.dart   # SharedPreferences 封装
 ├── ui/
-│   ├── home_screen.dart       # 主界面
+│   ├── home_screen.dart       # 主界面（填充预览）
 │   └── tray_setup.dart        # Windows/macOS 托盘集成
 └── utils/
     └── proxy_overrides.dart   # 系统代理支持

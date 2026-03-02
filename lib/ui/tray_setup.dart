@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:tray_manager/tray_manager.dart';
 import '../services/reddit_service.dart';
 import '../services/wallpaper_service.dart';
@@ -30,12 +31,24 @@ Future<void> initTrayAndDailyTimer() async {
   Timer.periodic(const Duration(hours: 1), (_) => _checkAndAutoSet());
 }
 
+/// Returns true when the primary display (or the first Flutter view) is
+/// landscape.  Falls back to landscape == true when no view is available.
+bool _isLandscapeFromDisplay() {
+  final views = ui.PlatformDispatcher.instance.views;
+  if (views.isEmpty) return true;
+  final view = views.first;
+  final size = view.physicalSize / view.devicePixelRatio;
+  return size.width >= size.height;
+}
+
 Future<void> _checkAndAutoSet() async {
   final storage = StorageService();
   if (!(await storage.shouldRefreshToday())) return;
 
   try {
-    final post = await RedditService().fetchTopWallpaper();
+    final landscapeOnly = _isLandscapeFromDisplay();
+    final post =
+        await RedditService().fetchTopWallpaper(landscapeOnly: landscapeOnly);
     if (post == null) return;
     final ok = await WallpaperService().setWallpaper(post.imageUrl);
     if (ok) {

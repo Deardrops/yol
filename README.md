@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="#Overview">English</a> · <a href="./README.zh.md">中文</a>
+  <a href="./README.md">English</a> · <a href="./README.zh.md">中文</a>
 </p>
 
 ---
@@ -22,7 +22,8 @@
 
 - **Automatic daily wallpaper** — Updates once per day in the background; no manual action required.
 - **Browse before you set** — Swipe through today's top landscape images with smooth slide transitions before choosing one.
-- **High-quality only** — Filters images to a minimum width of 2,500 px for crisp, full-resolution wallpapers.
+- **Orientation-aware filtering** — Landscape devices (Windows / macOS) fetch only landscape images; portrait devices (Android) fetch only portrait images, so the wallpaper always fits your screen correctly.
+- **WYSIWYG preview** — The app window matches your screen's exact aspect ratio, and the preview uses **Fill** (cover) mode — what you see is exactly what will appear on your desktop.
 - **System tray integration** *(Windows / macOS)* — Lives quietly in the system tray with a right-click context menu.
 - **Cross-platform** — Android, Windows, macOS, and more.
 
@@ -74,10 +75,10 @@ flutter build macos --release
 
 ### Usage
 
-1. Launch the app — it fetches today's top landscape images automatically.
+1. Launch the app — it automatically fetches today's top landscape images that match your screen orientation.
 2. Tap **←** / **→** to browse available wallpapers.
-3. Tap **Set as Wallpaper** to apply the current image.
-4. The app will check once a day (at startup or via background task) and auto-update your wallpaper.
+3. Tap **Set as Wallpaper** to apply the current image (Fill mode).
+4. The app checks once a day (at startup or via background task) and auto-updates your wallpaper.
 
 On **Windows / macOS**, minimize the app window — it stays accessible from the system tray.
 
@@ -90,10 +91,14 @@ App Start / Background Task
   Fetch top posts from r/EarthPorn (Reddit JSON API)
         │
         ▼
-  Filter: image posts, JPG/PNG, width ≥ 2500 px
+  Filter: image posts (JPG/PNG) whose orientation matches the device screen
+  (landscape devices → width ≥ height; portrait devices → height > width)
         │
         ▼
-  Display previews  ──── User picks ────► Set wallpaper
+  Display previews in Fill (cover) mode — window aspect ratio matches screen,
+  so the preview shows exactly the crop that will appear as the wallpaper
+        │
+        ├── User picks manually ────► Set wallpaper (Fill mode)
         │
         ▼ (auto mode)
   Set top wallpaper & save date to SharedPreferences
@@ -103,17 +108,17 @@ App Start / Background Task
 
 ```
 lib/
-├── main.dart                  # Entry point & WorkManager registration
+├── main.dart                  # Entry point, WorkManager registration & window sizing
 ├── background/
 │   └── background_task.dart   # Android background callback
 ├── models/
-│   └── wallpaper_post.dart    # Data model
+│   └── wallpaper_post.dart    # Data model (includes dimensions & orientation)
 ├── services/
-│   ├── reddit_service.dart    # Reddit API client
+│   ├── reddit_service.dart    # Reddit API client (with orientation filtering)
 │   ├── wallpaper_service.dart # Cross-platform wallpaper setter
 │   └── storage_service.dart   # SharedPreferences wrapper
 ├── ui/
-│   ├── home_screen.dart       # Main screen
+│   ├── home_screen.dart       # Main screen (Fill-mode preview)
 │   └── tray_setup.dart        # Windows/macOS tray integration
 └── utils/
     └── proxy_overrides.dart   # System proxy support
