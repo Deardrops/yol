@@ -21,12 +21,16 @@ class WallpaperService {
 
   Future<bool> _setAndroidWallpaper(String imageUrl) async {
     try {
-      final bool result = await AsyncWallpaper.setWallpaper(
-        url: imageUrl,
-        wallpaperLocation: AsyncWallpaper.BOTH_SCREENS,
-        goToHome: false,
+      // Both screens (home and lock) is what this used to ask for; the
+      // structured API reports the per-target outcome, so only a wallpaper
+      // Android confirmed as applied counts as success.
+      final result = await AsyncWallpaper.applyWallpaper(
+        StaticWallpaperRequest(
+          source: WallpaperSource.url(imageUrl),
+          target: WallpaperTarget.both,
+        ),
       );
-      return result;
+      return result.status == WallpaperOperationStatus.applied;
     } catch (_) {
       return false;
     }
